@@ -1,80 +1,59 @@
-import React, { useState } from "react";
-import "./App.css";
-function App() {
-  const [inputText, setInputText] = useState<string>("");
-  const [todos, setTodos] = useState<Todo[]>([]);
-  
-  type Todo = {
-    inputValue: string;
-    id: number;
-  };
+import { useState, useEffect } from 'react';
+import WeatherCard from './WeatherCard';
+import { WeatherData } from './types';
+import apiClient from './api';
 
-  //テキストの入力を反映させる関数
-  // const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   e.preventDefault();
-  //   setInputText(e.target.value);
-  // };
+const App = () => {
+    // 天気情報のstate：types.tsで定義した型（WeatherData）を使用して型定義
+    const [weather, setWeather] = useState<WeatherData | null>(null);
+    // エラーメッセージを管理するstate：string型またはnull型を使用して型定義
+    const [error, setError] = useState<string | null>(null);
 
-  //「作成」ボタンを押した時の処理の関数
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    console.log(weather);
 
-    //テキストが空欄であればTodoとして追加しない
-    if (inputText == "") {
-      return;
-    }
-    
-    //新しいTodoの型・変数を定義
-    const newTodo: Todo = {
-      inputValue: inputText,
-      id: todos.length,
-    };
+    // コンポーネントが表示されたときに一度だけ実行され、APIから天気データを取得
+    useEffect(() => {
+        // 天気情報を取得する非同期関数
+        const fetchWeather = async () => {
+            try {
+                // Axiosを使って天気APIからデータを取得：ジェネリクス<WeatherData>でレスポンスデータの型を指定
+                const response = await apiClient.get<WeatherData>('/forecast/city/130010');
+                setWeather(response.data); // 天気情報をstateにセット
+                console.log(weather);
+                console.log(response.data);
+            } catch (err) {
+                // エラーが発生した場合、エラーメッセージをstateにセット
+                setError((err as Error).message);
+                console.log(err);
+            }
+        };
 
-    setTodos([newTodo,...todos]); //新しいtodoを表示して既存のtodosをその下に表示
+        fetchWeather(); // 天気情報を取得
+    }, []);
 
-    console.log(inputText);
-    console.log(newTodo);
-    console.log(todos);
-    
-    setInputText("");
-  };
+    return (
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <h1>天気予報アプリ</h1>
+            {error ? (
+                // エラーがある場合はエラーメッセージを表示
+                <p style={{ color: 'red' }}>{error}</p>
+            ) : weather ? (
+                // 天気情報が取得できた場合はWeatherCardコンポーネントにデータを渡して表示
+                <WeatherCard
+                    city={weather.location.city}
+                    weather={weather.forecasts[0].explanation}
+                    temperature={{
+                        max: weather.forecasts[0].temperature.max?.celsius || 'N/A', // maximum temperature
+                        min: weather.forecasts[0].temperature.min?.celsius || 'N/A', // minimum temperature
+                    }}
+                    iconUrl={weather.forecasts[0].image.url} // Weather icon URL
+                />
+            ) : (
+                // Loading message while retrieving data
+                <p>天気情報を取得中...</p>
+            )}
+        </div>
+    );
+};
 
-  //削除
-  const handleDelete = (id: number) => {
-    const newTodos = todos.filter((todo) => todo.id !== id);
-    console.log(id);
-    console.log(inputText);
-    setTodos(newTodos);
-  };
-  
-  return (
-    <div className="App">
-      <div>
-        <h2>Todoリスト with Typescript</h2>
-        <form onSubmit={(e) => handleSubmit(e)}>
-          <input
-            type="text"
-            onChange={(e) => setInputText(e.target.value)} //(e)=>handleChange(e)
-            className="inputText"
-            value = {inputText}
-          />
-          <input type="submit" value="作成" className="submitButton" />
-        </form>
-        {/* タスク追加後 */}
-        <ul className="todoList">
-          {todos.map((todo) => (
-            <li key={todo.id}>
-              <h2>{todo.id}</h2>
-              <input
-                type="text"
-                value={todo.inputValue}
-              />
-              <button onClick={() => handleDelete(todo.id)}>消</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
 export default App;
